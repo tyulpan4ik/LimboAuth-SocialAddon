@@ -53,6 +53,7 @@ import net.elytrium.commons.utils.updates.UpdatesChecker;
 import net.elytrium.limboauth.LimboAuth;
 import net.elytrium.limboauth.handler.AuthSessionHandler;
 import net.elytrium.limboauth.model.RegisteredPlayer;
+import net.elytrium.limboauth.service.PasswordResetService;
 import net.elytrium.limboauth.socialaddon.command.ForceSocialUnlinkCommand;
 import net.elytrium.limboauth.socialaddon.command.ValidateLinkCommand;
 import net.elytrium.limboauth.socialaddon.listener.LimboAuthListener;
@@ -74,16 +75,16 @@ import org.bstats.velocity.Metrics;
 import org.slf4j.Logger;
 
 @Plugin(
-    id = "limboauth-social-addon",
-    name = "LimboAuth Social Addon",
-    version = BuildConstants.ADDON_VERSION,
-    url = "https://elytrium.net/",
-    authors = {
-        "Elytrium (https://elytrium.net/)",
-    },
-    dependencies = {
-        @Dependency(id = "limboauth")
-    }
+        id = "limboauth-social-addon",
+        name = "LimboAuth Social Addon",
+        version = BuildConstants.ADDON_VERSION,
+        url = "https://elytrium.net/",
+        authors = {
+                "Elytrium (https://elytrium.net/)",
+        },
+        dependencies = {
+                @Dependency(id = "limboauth")
+        }
 )
 public class Addon {
 
@@ -110,6 +111,7 @@ public class Addon {
 
   private Dao<SocialPlayer, String> dao;
   private Pattern nicknamePattern;
+  private PasswordResetService passwordResetService;
 
   private SocialManager socialManager;
   private List<List<AbstractSocial.ButtonItem>> keyboard;
@@ -146,6 +148,7 @@ public class Addon {
 
   @Subscribe(order = PostOrder.NORMAL)
   public void onProxyInitialization(ProxyInitializeEvent event) throws SQLException {
+    this.passwordResetService = this.plugin.getPasswordResetService();
     this.onReload();
     this.metricsFactory.make(this, 14770);
     if (!UpdatesChecker.checkVersionByURL("https://raw.githubusercontent.com/Elytrium/LimboAuth-SocialAddon/master/VERSION", Settings.IMP.VERSION)) {
@@ -178,21 +181,21 @@ public class Addon {
     this.socialManager.start();
 
     this.keyboard = List.of(
-        List.of(
-            new AbstractSocial.ButtonItem(INFO_BTN, Settings.IMP.MAIN.STRINGS.INFO_BTN, AbstractSocial.ButtonItem.Color.PRIMARY)
-        ),
-        List.of(
-            new AbstractSocial.ButtonItem(BLOCK_BTN, Settings.IMP.MAIN.STRINGS.BLOCK_TOGGLE_BTN, AbstractSocial.ButtonItem.Color.SECONDARY),
-            new AbstractSocial.ButtonItem(TOTP_BTN, Settings.IMP.MAIN.STRINGS.TOGGLE_2FA_BTN, AbstractSocial.ButtonItem.Color.SECONDARY)
-        ),
-        List.of(
-            new AbstractSocial.ButtonItem(NOTIFY_BTN, Settings.IMP.MAIN.STRINGS.TOGGLE_NOTIFICATION_BTN, AbstractSocial.ButtonItem.Color.SECONDARY)
-        ),
-        List.of(
-            new AbstractSocial.ButtonItem(KICK_BTN, Settings.IMP.MAIN.STRINGS.KICK_BTN, AbstractSocial.ButtonItem.Color.RED),
-            new AbstractSocial.ButtonItem(RESTORE_BTN, Settings.IMP.MAIN.STRINGS.RESTORE_BTN, AbstractSocial.ButtonItem.Color.RED),
-            new AbstractSocial.ButtonItem(UNLINK_BTN, Settings.IMP.MAIN.STRINGS.UNLINK_BTN, AbstractSocial.ButtonItem.Color.RED)
-        )
+            List.of(
+                    new AbstractSocial.ButtonItem(INFO_BTN, Settings.IMP.MAIN.STRINGS.INFO_BTN, AbstractSocial.ButtonItem.Color.PRIMARY)
+            ),
+            List.of(
+                    new AbstractSocial.ButtonItem(BLOCK_BTN, Settings.IMP.MAIN.STRINGS.BLOCK_TOGGLE_BTN, AbstractSocial.ButtonItem.Color.SECONDARY),
+                    new AbstractSocial.ButtonItem(TOTP_BTN, Settings.IMP.MAIN.STRINGS.TOGGLE_2FA_BTN, AbstractSocial.ButtonItem.Color.SECONDARY)
+            ),
+            List.of(
+                    new AbstractSocial.ButtonItem(NOTIFY_BTN, Settings.IMP.MAIN.STRINGS.TOGGLE_NOTIFICATION_BTN, AbstractSocial.ButtonItem.Color.SECONDARY)
+            ),
+            List.of(
+                    new AbstractSocial.ButtonItem(KICK_BTN, Settings.IMP.MAIN.STRINGS.KICK_BTN, AbstractSocial.ButtonItem.Color.RED),
+                    new AbstractSocial.ButtonItem(RESTORE_BTN, Settings.IMP.MAIN.STRINGS.RESTORE_BTN, AbstractSocial.ButtonItem.Color.RED),
+                    new AbstractSocial.ButtonItem(UNLINK_BTN, Settings.IMP.MAIN.STRINGS.UNLINK_BTN, AbstractSocial.ButtonItem.Color.RED)
+            )
     );
 
     this.socialManager.registerKeyboard(this.keyboard);
@@ -255,7 +258,7 @@ public class Addon {
 
           this.linkSocial(lowercaseNickname, dbField, id);
           this.socialManager.broadcastMessage(dbField, id,
-              Placeholders.replace(Settings.IMP.MAIN.STRINGS.REGISTER_SUCCESS, newPassword));
+                  Placeholders.replace(Settings.IMP.MAIN.STRINGS.REGISTER_SUCCESS, newPassword));
         }
       }
 
@@ -355,14 +358,14 @@ public class Addon {
       }
 
       this.socialManager.broadcastMessage(dbField, id, Placeholders.replace(Settings.IMP.MAIN.STRINGS.INFO_MSG,
-              player.getLowercaseNickname(),
-              server,
-              ip,
-              location,
-              player.isNotifyEnabled() ? Settings.IMP.MAIN.STRINGS.NOTIFY_ENABLED : Settings.IMP.MAIN.STRINGS.NOTIFY_DISABLED,
-              player.isBlocked() ? Settings.IMP.MAIN.STRINGS.BLOCK_ENABLED : Settings.IMP.MAIN.STRINGS.BLOCK_DISABLED,
-              player.isTotpEnabled() ? Settings.IMP.MAIN.STRINGS.TOTP_ENABLED : Settings.IMP.MAIN.STRINGS.TOTP_DISABLED),
-          this.keyboard
+                      player.getLowercaseNickname(),
+                      server,
+                      ip,
+                      location,
+                      player.isNotifyEnabled() ? Settings.IMP.MAIN.STRINGS.NOTIFY_ENABLED : Settings.IMP.MAIN.STRINGS.NOTIFY_DISABLED,
+                      player.isBlocked() ? Settings.IMP.MAIN.STRINGS.BLOCK_ENABLED : Settings.IMP.MAIN.STRINGS.BLOCK_DISABLED,
+                      player.isTotpEnabled() ? Settings.IMP.MAIN.STRINGS.TOTP_ENABLED : Settings.IMP.MAIN.STRINGS.TOTP_DISABLED),
+              this.keyboard
       );
     });
 
@@ -378,18 +381,18 @@ public class Addon {
       if (player.isBlocked()) {
         player.setBlocked(false);
         this.socialManager.broadcastMessage(dbField, id,
-            Placeholders.replace(Settings.IMP.MAIN.STRINGS.UNBLOCK_SUCCESS, player.getLowercaseNickname()), this.keyboard
+                Placeholders.replace(Settings.IMP.MAIN.STRINGS.UNBLOCK_SUCCESS, player.getLowercaseNickname()), this.keyboard
         );
       } else {
         player.setBlocked(true);
 
         this.plugin.removePlayerFromCache(player.getLowercaseNickname());
         this.server
-            .getPlayer(player.getLowercaseNickname())
-            .ifPresent(e -> e.disconnect(Addon.getSerializer().deserialize(Settings.IMP.MAIN.STRINGS.KICK_GAME_MESSAGE)));
+                .getPlayer(player.getLowercaseNickname())
+                .ifPresent(e -> e.disconnect(Addon.getSerializer().deserialize(Settings.IMP.MAIN.STRINGS.KICK_GAME_MESSAGE)));
 
         this.socialManager.broadcastMessage(dbField, id,
-            Placeholders.replace(Settings.IMP.MAIN.STRINGS.BLOCK_SUCCESS, player.getLowercaseNickname()), this.keyboard
+                Placeholders.replace(Settings.IMP.MAIN.STRINGS.BLOCK_SUCCESS, player.getLowercaseNickname()), this.keyboard
         );
       }
 
@@ -408,12 +411,12 @@ public class Addon {
       if (player.isTotpEnabled()) {
         player.setTotpEnabled(false);
         this.socialManager.broadcastMessage(dbField, id,
-            Placeholders.replace(Settings.IMP.MAIN.STRINGS.TOTP_DISABLE_SUCCESS, player.getLowercaseNickname()), this.keyboard
+                Placeholders.replace(Settings.IMP.MAIN.STRINGS.TOTP_DISABLE_SUCCESS, player.getLowercaseNickname()), this.keyboard
         );
       } else {
         player.setTotpEnabled(true);
         this.socialManager.broadcastMessage(dbField, id,
-            Placeholders.replace(Settings.IMP.MAIN.STRINGS.TOTP_ENABLE_SUCCESS, player.getLowercaseNickname()), this.keyboard
+                Placeholders.replace(Settings.IMP.MAIN.STRINGS.TOTP_ENABLE_SUCCESS, player.getLowercaseNickname()), this.keyboard
         );
       }
 
@@ -432,12 +435,12 @@ public class Addon {
       if (player.isNotifyEnabled()) {
         player.setNotifyEnabled(false);
         this.socialManager.broadcastMessage(dbField, id,
-            Placeholders.replace(Settings.IMP.MAIN.STRINGS.NOTIFY_DISABLE_SUCCESS, player.getLowercaseNickname()), this.keyboard
+                Placeholders.replace(Settings.IMP.MAIN.STRINGS.NOTIFY_DISABLE_SUCCESS, player.getLowercaseNickname()), this.keyboard
         );
       } else {
         player.setNotifyEnabled(true);
         this.socialManager.broadcastMessage(dbField, id,
-            Placeholders.replace(Settings.IMP.MAIN.STRINGS.NOTIFY_ENABLE_SUCCESS, player.getLowercaseNickname()), this.keyboard
+                Placeholders.replace(Settings.IMP.MAIN.STRINGS.NOTIFY_ENABLE_SUCCESS, player.getLowercaseNickname()), this.keyboard
         );
       }
 
@@ -458,11 +461,11 @@ public class Addon {
       if (proxyPlayer.isPresent()) {
         proxyPlayer.get().disconnect(Addon.getSerializer().deserialize(Settings.IMP.MAIN.STRINGS.KICK_GAME_MESSAGE));
         this.socialManager.broadcastMessage(dbField, id,
-            Placeholders.replace(Settings.IMP.MAIN.STRINGS.KICK_SUCCESS, player.getLowercaseNickname()), this.keyboard
+                Placeholders.replace(Settings.IMP.MAIN.STRINGS.KICK_SUCCESS, player.getLowercaseNickname()), this.keyboard
         );
       } else {
         this.socialManager.broadcastMessage(dbField, id,
-            Settings.IMP.MAIN.STRINGS.KICK_IS_OFFLINE.replace("{NICKNAME}", player.getLowercaseNickname()), this.keyboard
+                Settings.IMP.MAIN.STRINGS.KICK_IS_OFFLINE.replace("{NICKNAME}", player.getLowercaseNickname()), this.keyboard
         );
       }
 
@@ -479,10 +482,10 @@ public class Addon {
       SocialPlayer player = socialPlayerList.get(0);
 
       if (Settings.IMP.MAIN.PROHIBIT_PREMIUM_RESTORE
-          && this.plugin.isPremiumInternal(player.getLowercaseNickname()).getState() != LimboAuth.PremiumState.CRACKED) {
+              && this.plugin.isPremiumInternal(player.getLowercaseNickname()).getState() != LimboAuth.PremiumState.CRACKED) {
         this.socialManager.broadcastMessage(dbField, id,
-            Placeholders.replace(Settings.IMP.MAIN.STRINGS.RESTORE_MSG_PREMIUM, player.getLowercaseNickname()),
-            this.keyboard
+                Placeholders.replace(Settings.IMP.MAIN.STRINGS.RESTORE_MSG_PREMIUM, player.getLowercaseNickname()),
+                this.keyboard
         );
         return;
       }
@@ -498,13 +501,13 @@ public class Addon {
 
       if (updated) {
         this.socialManager.broadcastMessage(dbField, id,
-            Placeholders.replace(Settings.IMP.MAIN.STRINGS.RESTORE_MSG, player.getLowercaseNickname(), newPassword),
-            this.keyboard
+                Placeholders.replace(Settings.IMP.MAIN.STRINGS.RESTORE_MSG, player.getLowercaseNickname(), newPassword),
+                this.keyboard
         );
       } else {
         this.socialManager.broadcastMessage(dbField, id,
-            Placeholders.replace(Settings.IMP.MAIN.STRINGS.RESTORE_MSG_PREMIUM, player.getLowercaseNickname()),
-            this.keyboard
+                Placeholders.replace(Settings.IMP.MAIN.STRINGS.RESTORE_MSG_PREMIUM, player.getLowercaseNickname()),
+                this.keyboard
         );
       }
     });
@@ -535,15 +538,17 @@ public class Addon {
       Long playerId = SocialPlayer.DatabaseField.valueOf(dbField).getIdFor(player);
       SocialPlayer.DatabaseField.valueOf(dbField).setIdFor(player, null);
       boolean allUnlinked = Arrays.stream(SocialPlayer.DatabaseField.values())
-          .noneMatch(v -> v.getIdFor(player) != null);
+              .noneMatch(v -> v.getIdFor(player) != null);
       SocialPlayer.DatabaseField.valueOf(dbField).setIdFor(player, playerId);
 
       if (Settings.IMP.MAIN.UNLINK_BTN_ALL || allUnlinked) {
         this.socialManager.unregisterHook(player);
         this.dao.delete(player);
 
+        this.onSocialNetworkUnlinked(player.getLowercaseNickname());
+
         Settings.IMP.MAIN.AFTER_UNLINKAGE_COMMANDS.forEach(command ->
-            this.server.getCommandManager().executeAsync(p -> Tristate.TRUE, command.replace("{NICKNAME}", player.getLowercaseNickname())));
+                this.server.getCommandManager().executeAsync(p -> Tristate.TRUE, command.replace("{NICKNAME}", player.getLowercaseNickname())));
       } else {
         UpdateBuilder<SocialPlayer, String> updateBuilder = this.dao.updateBuilder();
         updateBuilder.where().eq(SocialPlayer.LOWERCASE_NICKNAME_FIELD, player.getLowercaseNickname());
@@ -555,7 +560,7 @@ public class Addon {
 
       this.socialManager.broadcastMessage(dbField, id, Settings.IMP.MAIN.STRINGS.UNLINK_SUCCESS);
       this.server.getPlayer(player.getLowercaseNickname()).ifPresent(p ->
-          p.sendMessage(SERIALIZER.deserialize(Settings.IMP.MAIN.STRINGS.UNLINK_SUCCESS_GAME)));
+              p.sendMessage(SERIALIZER.deserialize(Settings.IMP.MAIN.STRINGS.UNLINK_SUCCESS_GAME)));
     });
   }
 
@@ -572,7 +577,7 @@ public class Addon {
     this.nicknamePattern = Pattern.compile(net.elytrium.limboauth.Settings.IMP.MAIN.ALLOWED_NICKNAME_REGEX);
 
     this.server.getEventManager().register(this, new LimboAuthListener(this, this.plugin, this.dao, this.socialManager,
-        this.keyboard, this.geoIp
+            this.keyboard, this.geoIp
     ));
     this.server.getEventManager().register(this, new ReloadListener(this));
 
@@ -581,32 +586,32 @@ public class Addon {
     }
 
     this.purgeCacheTask = this.server.getScheduler()
-        .buildTask(this, () -> this.checkCache(this.cachedAccountRegistrations, Settings.IMP.MAIN.PURGE_REGISTRATION_CACHE_MILLIS))
-        .delay(net.elytrium.limboauth.Settings.IMP.MAIN.PURGE_CACHE_MILLIS, TimeUnit.MILLISECONDS)
-        .repeat(net.elytrium.limboauth.Settings.IMP.MAIN.PURGE_CACHE_MILLIS, TimeUnit.MILLISECONDS)
-        .schedule();
+            .buildTask(this, () -> this.checkCache(this.cachedAccountRegistrations, Settings.IMP.MAIN.PURGE_REGISTRATION_CACHE_MILLIS))
+            .delay(net.elytrium.limboauth.Settings.IMP.MAIN.PURGE_CACHE_MILLIS, TimeUnit.MILLISECONDS)
+            .repeat(net.elytrium.limboauth.Settings.IMP.MAIN.PURGE_CACHE_MILLIS, TimeUnit.MILLISECONDS)
+            .schedule();
 
     CommandManager commandManager = this.server.getCommandManager();
     commandManager.unregister(Settings.IMP.MAIN.LINKAGE_MAIN_CMD);
     commandManager.unregister(Settings.IMP.MAIN.FORCE_UNLINK_MAIN_CMD);
 
     commandManager.register(
-        Settings.IMP.MAIN.LINKAGE_MAIN_CMD,
-        new ValidateLinkCommand(this),
-        Settings.IMP.MAIN.LINKAGE_ALIAS_CMD.toArray(new String[0])
+            Settings.IMP.MAIN.LINKAGE_MAIN_CMD,
+            new ValidateLinkCommand(this),
+            Settings.IMP.MAIN.LINKAGE_ALIAS_CMD.toArray(new String[0])
     );
     commandManager.register(
-        Settings.IMP.MAIN.FORCE_UNLINK_MAIN_CMD,
-        new ForceSocialUnlinkCommand(this),
-        Settings.IMP.MAIN.FORCE_UNLINK_ALIAS_CMD.toArray(new String[0])
+            Settings.IMP.MAIN.FORCE_UNLINK_MAIN_CMD,
+            new ForceSocialUnlinkCommand(this),
+            Settings.IMP.MAIN.FORCE_UNLINK_ALIAS_CMD.toArray(new String[0])
     );
   }
 
   private void checkCache(Map<?, ? extends CachedUser> userMap, long time) {
     userMap.entrySet().stream()
-        .filter(userEntry -> userEntry.getValue().getCheckTime() + time <= System.currentTimeMillis())
-        .map(Map.Entry::getKey)
-        .forEach(userMap::remove);
+            .filter(userEntry -> userEntry.getValue().getCheckTime() + time <= System.currentTimeMillis())
+            .map(Map.Entry::getKey)
+            .forEach(userMap::remove);
   }
 
   public void unregisterPlayer(String nickname) {
@@ -615,6 +620,8 @@ public class Addon {
       if (player != null) {
         this.socialManager.unregisterHook(player);
         this.dao.delete(player);
+
+        this.onSocialNetworkUnlinked(nickname);
       }
     } catch (SQLException e) {
       throw new IllegalStateException(e);
@@ -625,9 +632,11 @@ public class Addon {
     SocialPlayer socialPlayer = this.dao.queryForId(lowercaseNickname);
     if (socialPlayer == null) {
       Settings.IMP.MAIN.AFTER_LINKAGE_COMMANDS.forEach(command ->
-          this.server.getCommandManager().executeAsync(p -> Tristate.TRUE, command.replace("{NICKNAME}", lowercaseNickname)));
+              this.server.getCommandManager().executeAsync(p -> Tristate.TRUE, command.replace("{NICKNAME}", lowercaseNickname)));
 
       this.dao.create(new SocialPlayer(lowercaseNickname));
+
+      this.onSocialNetworkLinked(lowercaseNickname);
     } else if (!Settings.IMP.MAIN.ALLOW_ACCOUNT_RELINK && SocialPlayer.DatabaseField.valueOf(dbField).getIdFor(socialPlayer) != null) {
       this.socialManager.broadcastMessage(dbField, id, Settings.IMP.MAIN.STRINGS.LINK_ALREADY);
       return;
@@ -637,6 +646,40 @@ public class Addon {
     updateBuilder.where().eq(SocialPlayer.LOWERCASE_NICKNAME_FIELD, lowercaseNickname);
     updateBuilder.updateColumnValue(dbField, id);
     updateBuilder.update();
+  }
+
+  private void onSocialNetworkLinked(String nickname) {
+    if (this.passwordResetService != null) {
+      this.passwordResetService.setSocialNetworkLinked(nickname, true);
+      this.logger.info("Игрок {} привязан к социальной сети - пароль защищен от автосброса", nickname);
+    }
+  }
+
+  private void onSocialNetworkUnlinked(String nickname) {
+    if (this.passwordResetService != null) {
+      boolean hasOtherLinks = this.checkIfPlayerHasAnySocialLinks(nickname);
+
+      if (!hasOtherLinks) {
+        this.passwordResetService.setSocialNetworkLinked(nickname, false);
+        this.logger.info("Игрок {} отвязан от всех социальных сетей - пароль больше не защищен от автосброса", nickname);
+      }
+    }
+  }
+
+  private boolean checkIfPlayerHasAnySocialLinks(String nickname) {
+    try {
+      SocialPlayer player = this.dao.queryForId(nickname.toLowerCase(Locale.ROOT));
+      if (player == null) {
+        return false;
+      }
+
+      return player.getVkID() != null ||
+              player.getTelegramID() != null ||
+              player.getDiscordID() != null;
+    } catch (SQLException e) {
+      this.logger.error("Ошибка при проверке привязок социальных сетей для игрока: {}", nickname, e);
+      return false;
+    }
   }
 
   public Integer getCode(String nickname) {

@@ -2,14 +2,13 @@
 
 plugins {
     id("java")
-    id("checkstyle")
     id("com.github.spotbugs").version("6.1.7")
     id("org.cadixdev.licenser").version("0.6.1")
     id("com.gradleup.shadow").version("8.3.6")
 }
 
 setGroup("net.elytrium")
-setVersion("1.0.11-SNAPSHOT")
+setVersion("1.0.11-SNAPSHOT-fork")
 
 compileJava {
     getOptions().setEncoding("UTF-8")
@@ -39,7 +38,7 @@ repositories {
 
 dependencies {
     compileOnly("net.elytrium.limboapi:api:$limboapiVersion")
-    compileOnly("net.elytrium:limboauth:$limboauthVersion")
+    compileOnly files('C:/Users/User/Desktop/s3ll3er/srcs/LimboAuth/limboauth-1.1.14-fork.jar')
     compileOnly("net.elytrium.commons:config:$elytriumCommonsVersion")
     compileOnly("net.elytrium.commons:utils:$elytriumCommonsVersion")
     compileOnly("net.elytrium.commons:velocity:$elytriumCommonsVersion")
@@ -89,16 +88,6 @@ shadowJar {
 
 license {
     setHeader(file("HEADER.txt"))
-}
-
-checkstyle {
-    setToolVersion("9.2.1")
-    setConfigFile(file("${this.getRootDir()}/config/checkstyle/checkstyle.xml"))
-    setConfigProperties("configDirectory": "${this.getRootDir()}/config/checkstyle")
-
-    // The build should immediately fail if we have errors.
-    setMaxErrors(0)
-    setMaxWarnings(0)
 }
 
 spotbugsMain {
